@@ -1,0 +1,29 @@
+# Core Alpaca Trading API
+alpaca-py>=0.13.0
+
+# Data handling
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Timezone handling
+pytz>=2023.3
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# Desktop notifications (optional but recommended)
+plyer>=2.1.0
+
+# Logging enhancements
+colorlog>=6.7.0
+
+# Scheduling (for automated runs)
+schedule>=1.2.0
+
+# Data visualization (optional, for analysis)
+matplotlib>=3.7.0
+plotly>=5.14.0
+
+# Testing
+pytest>=7.3.0
+pytest-mock>=3.10.0
