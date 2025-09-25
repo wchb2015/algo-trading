@@ -42,3 +42,25 @@ Account Status:
   Portfolio Value: $99999.33
 
 2025-09-24 21:01:56,750 - INFO - Trading bot completed successfully
+2025-09-24 21:11:31,846 - INFO - Connected to Alpaca - Account Status: ACTIVE
+2025-09-24 21:11:31,846 - INFO - Buying Power: $199337.56
+2025-09-24 21:11:31,847 - INFO - TQQQ Trading Bot initialized - PAPER TRADING MODE
+2025-09-24 21:11:31,988 - INFO - Starting TQQQ Trading Bot...
+2025-09-24 21:11:32,089 - WARNING - Market is closed. Waiting for market open...
+2025-09-24 21:11:32,218 - INFO - Waiting for market open (6:30 AM PDT)...
+2025-09-24 21:11:32,218 - WARNING - Target time 6:30 PDT has already passed
+2025-09-24 21:11:32,218 - WARNING - Target time 7:00 PDT has already passed
+2025-09-24 21:11:32,218 - WARNING - Target time 12:59 PDT has already passed
+2025-09-24 21:11:32,219 - INFO - ==================================================
+2025-09-24 21:11:32,219 - INFO - DAILY TRADING SUMMARY
+2025-09-24 21:11:32,374 - INFO - TQQQ Trading Bot - Daily Summary
+Date: 2025-09-24
+========================================
+
+Trades Executed: 0
+
+Account Status:
+  Buying Power: $199337.56
+  Portfolio Value: $99999.33
+
+2025-09-24 21:11:32,504 - INFO - Trading bot completed successfully

@@ -25,12 +25,16 @@ from notifications import NotificationHandler
 # Load environment variables
 load_dotenv()
 
+# Create logs directory if it doesn't exist
+log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('tqqq_trading_bot.log'),
+        logging.FileHandler(os.path.join(log_dir, 'tqqq_trading_bot.log')),
         logging.StreamHandler()
     ]
 )
@@ -323,8 +327,10 @@ class TQQQTradingBot:
         logger.info(summary)
         self.notifier.send_notification("Daily Summary", summary)
         
-        # Save to file
-        with open(f"trade_summary_{datetime.now(self.pdt).strftime('%Y%m%d')}.txt", 'w') as f:
+        # Save to file in logs directory
+        log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+        summary_file = os.path.join(log_dir, f"trade_summary_{datetime.now(self.pdt).strftime('%Y%m%d')}.txt")
+        with open(summary_file, 'w') as f:
             f.write(summary)
     
     def run(self):
