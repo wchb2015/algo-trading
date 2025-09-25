@@ -41,21 +41,56 @@ def check_requirements():
 
 def check_env_file():
     """Check if .env file exists and has required variables"""
-    if not os.path.exists('.env'):
+    from dotenv import load_dotenv
+    
+    # Try to find .env file in multiple locations
+    env_locations = []
+    
+    # First priority: ENVROOT environment variable
+    if os.environ.get('ENVROOT'):
+        env_locations.append(os.path.join(os.environ['ENVROOT'], '.env'))
+    
+    # Second priority: Parent directory (algo-trading)
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_locations.append(os.path.join(parent_dir, '.env'))
+    
+    # Third priority: Current working directory
+    env_locations.append('.env')
+    
+    # Fourth priority: Script directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    env_locations.append(os.path.join(script_dir, '.env'))
+    
+    # Try to load .env from each location
+    env_loaded = False
+    env_path = None
+    
+    for path in env_locations:
+        if os.path.exists(path):
+            print(f"📁 Found .env file at: {path}")
+            load_dotenv(path)
+            env_loaded = True
+            env_path = path
+            break
+    
+    if not env_loaded:
         print("❌ .env file not found!")
+        print("\nSearched in the following locations:")
+        for path in env_locations:
+            print(f"  - {path}")
         print("\nPlease create a .env file with your Alpaca API credentials:")
         print("  ALPACA_API_KEY=your_api_key_here")
         print("  ALPACA_API_SECRET=your_api_secret_here")
+        print("\nYou can also set ENVROOT environment variable to specify the location.")
         return False
     
-    from dotenv import load_dotenv
-    load_dotenv()
-    
+    # Check if credentials are present
     if not os.getenv('ALPACA_API_KEY') or not os.getenv('ALPACA_API_SECRET'):
-        print("❌ API credentials not found in .env file!")
+        print(f"❌ API credentials not found in .env file at {env_path}!")
         print("\nPlease add your Alpaca API credentials to the .env file")
         return False
     
+    print("✅ Environment variables loaded successfully")
     return True
 
 def display_status():
@@ -161,7 +196,14 @@ def main():
     print("     - SELL 1 share if price <= open price (if position exists)")
     print("  3. Close any position at 12:59 PM PDT")
     
-    response = input("\nPress Enter to start the bot (or Ctrl+C to cancel): ")
+    # Auto-start the bot without manual approval
+    print("\n🚀 Starting bot automatically in 3 seconds...")
+    print("   (Press Ctrl+C to cancel)")
+    
+    import time
+    for i in range(3, 0, -1):
+        print(f"   {i}...")
+        time.sleep(1)
     
     try:
         # Create and run the bot
