@@ -1,9 +1,0 @@
-TQQQ Trading Bot - Daily Summary
-Date: 2025-09-23
-========================================
-
-Trades Executed: 0
-
-Account Status:
-  Buying Power: $199339.67
-  Portfolio Value: $100001.44

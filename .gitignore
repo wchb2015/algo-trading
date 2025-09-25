@@ -3,3 +3,9 @@ __pycache__/
 .env
 *.env
 .env.*
+
+# Logs
+tqqq_bot/logs/
+*.log
+trade_summary_*.txt
+notifications_*.log
