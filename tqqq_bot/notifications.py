@@ -85,8 +85,10 @@ class NotificationHandler:
         if self.enable_desktop:
             self._desktop_notification(title, message)
         
-        # Sound alert for critical notifications
+        # Sound alert for critical notifications (with small delay to avoid conflicts)
         if self.enable_sound and urgency == 'critical':
+            import time
+            time.sleep(0.1)  # Small delay to avoid conflicts with desktop notification
             self._play_sound()
     
     def _log_to_file(self, timestamp, title, message):
@@ -121,13 +123,22 @@ class NotificationHandler:
         """Send desktop notification"""
         notification_sent = False
         
+        # Clean up title and message for better compatibility
+        # Remove emojis for system compatibility if needed
+        clean_title = title.encode('ascii', 'ignore').decode('ascii').strip()
+        if not clean_title:  # If title becomes empty after removing emojis, use original
+            clean_title = title
+        
+        # Ensure message doesn't have problematic characters
+        clean_message = message[:256]  # Limit message length
+        
         # Try pync first for macOS (most reliable)
         if IS_MACOS and PYNC_AVAILABLE and not notification_sent:
             try:
                 import pync
                 pync.notify(
-                    message[:256],  # Limit message length
-                    title=title,
+                    clean_message,
+                    title=clean_title,
                     appName='TQQQ Trading Bot',
                     sound='Glass'  # Use system sound
                 )
@@ -135,13 +146,14 @@ class NotificationHandler:
                 notification_sent = True
             except Exception as e:
                 logger.warning(f"pync notification failed: {e}")
+                print(f"DEBUG: pync failed with title='{title}', message='{message[:50]}...', error={e}")
         
         # Try Plyer as second option
         if DESKTOP_NOTIFICATIONS_AVAILABLE and not notification_sent:
             try:
                 desktop_notification.notify(
-                    title=title,
-                    message=message[:256],  # Limit message length
+                    title=clean_title,
+                    message=clean_message,
                     app_name='TQQQ Trading Bot',
                     timeout=10  # Notification stays for 10 seconds
                 )
@@ -149,25 +161,33 @@ class NotificationHandler:
                 notification_sent = True
             except Exception as e:
                 logger.warning(f"Plyer notification failed: {e}")
+                print(f"DEBUG: Plyer failed with title='{title}', message='{message[:50]}...', error={e}")
         
         # Try osascript as final fallback for macOS
         if IS_MACOS and not notification_sent:
             try:
-                self._macos_notification(title, message)
+                self._macos_notification(clean_title, clean_message)
                 logger.info(f"Sent notification via osascript: {title}")
                 notification_sent = True
             except Exception as e:
                 logger.warning(f"osascript notification failed: {e}")
+                print(f"DEBUG: osascript failed with title='{title}', message='{message[:50]}...', error={e}")
         
         if not notification_sent:
             logger.warning("No desktop notification method succeeded")
+            print(f"DEBUG: All notification methods failed for title='{title}'")
     
     def _macos_notification(self, title, message):
         """Send macOS native notification using osascript"""
         try:
+            # Remove problematic characters and limit length
+            title = title[:100]  # Limit title length
+            message = message[:256]  # Limit message length
+            
             # Escape quotes and special characters for AppleScript
-            title = title.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
-            message = message.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
+            # Also handle newlines which can break the AppleScript
+            title = title.replace('\n', ' ').replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
+            message = message.replace('\n', ' ').replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
             
             # Create AppleScript command using double quotes for the outer shell command
             script = f'display notification "{message}" with title "{title}" sound name "Glass"'
