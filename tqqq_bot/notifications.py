@@ -17,6 +17,15 @@ except ImportError:
     DESKTOP_NOTIFICATIONS_AVAILABLE = False
     print("Desktop notifications not available. Install 'plyer' for desktop notifications.")
 
+# For macOS, try to import pync
+PYNC_AVAILABLE = False
+if platform.system() == 'Darwin':
+    try:
+        import pync
+        PYNC_AVAILABLE = True
+    except ImportError:
+        pass
+
 # For macOS, we can also use osascript for notifications
 IS_MACOS = platform.system() == 'Darwin'
 
@@ -110,35 +119,68 @@ class NotificationHandler:
     
     def _desktop_notification(self, title, message):
         """Send desktop notification"""
-        try:
-            if IS_MACOS:
-                # Use macOS native notification via osascript
-                self._macos_notification(title, message)
-            elif DESKTOP_NOTIFICATIONS_AVAILABLE:
-                # Use plyer for cross-platform notifications
+        notification_sent = False
+        
+        # Try pync first for macOS (most reliable)
+        if IS_MACOS and PYNC_AVAILABLE and not notification_sent:
+            try:
+                import pync
+                pync.notify(
+                    message[:256],  # Limit message length
+                    title=title,
+                    appName='TQQQ Trading Bot',
+                    sound='Glass'  # Use system sound
+                )
+                logger.info(f"Sent notification via pync: {title}")
+                notification_sent = True
+            except Exception as e:
+                logger.warning(f"pync notification failed: {e}")
+        
+        # Try Plyer as second option
+        if DESKTOP_NOTIFICATIONS_AVAILABLE and not notification_sent:
+            try:
                 desktop_notification.notify(
                     title=title,
                     message=message[:256],  # Limit message length
                     app_name='TQQQ Trading Bot',
                     timeout=10  # Notification stays for 10 seconds
                 )
-        except Exception as e:
-            logger.warning(f"Could not send desktop notification: {e}")
+                logger.info(f"Sent notification via Plyer: {title}")
+                notification_sent = True
+            except Exception as e:
+                logger.warning(f"Plyer notification failed: {e}")
+        
+        # Try osascript as final fallback for macOS
+        if IS_MACOS and not notification_sent:
+            try:
+                self._macos_notification(title, message)
+                logger.info(f"Sent notification via osascript: {title}")
+                notification_sent = True
+            except Exception as e:
+                logger.warning(f"osascript notification failed: {e}")
+        
+        if not notification_sent:
+            logger.warning("No desktop notification method succeeded")
     
     def _macos_notification(self, title, message):
         """Send macOS native notification using osascript"""
         try:
-            # Escape quotes in title and message
-            title = title.replace('"', '\\"')
-            message = message.replace('"', '\\"')
+            # Escape quotes and special characters for AppleScript
+            title = title.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
+            message = message.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
             
-            # Create AppleScript command
-            script = f'''
-            display notification "{message}" with title "{title}" sound name "Glass"
-            '''
+            # Create AppleScript command using double quotes for the outer shell command
+            script = f'display notification "{message}" with title "{title}" sound name "Glass"'
             
-            # Execute AppleScript
-            os.system(f"osascript -e '{script}'")
+            # Execute AppleScript with proper escaping
+            import subprocess
+            result = subprocess.run(['osascript', '-e', script], 
+                                  capture_output=True, text=True, timeout=5)
+            
+            if result.returncode != 0:
+                logger.warning(f"osascript returned error: {result.stderr}")
+        except subprocess.TimeoutExpired:
+            logger.warning("macOS notification timed out")
         except Exception as e:
             logger.warning(f"Could not send macOS notification: {e}")
     
