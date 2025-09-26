@@ -153,15 +153,17 @@ class TQQQTradingBot:
         
         return True
     
-    def place_order(self, side, quantity=None):
+    def place_order(self, side, quantity=None, symbol=None):
         """Place a market order"""
         if quantity is None:
             quantity = self.quantity
+        if symbol is None:
+            symbol = self.symbol
         
         try:
             # Create order request
             order_request = MarketOrderRequest(
-                symbol=self.symbol,
+                symbol=symbol,
                 qty=quantity,
                 side=side,
                 time_in_force=TimeInForce.DAY
@@ -172,18 +174,19 @@ class TQQQTradingBot:
             
             # Log and notify
             action = "BUY" if side == OrderSide.BUY else "SELL"
-            current_price = self.get_current_price()
+            current_price = self.get_current_price(symbol)
             
-            logger.info(f"Order placed: {action} {quantity} {self.symbol} at ~${current_price:.2f}")
+            logger.info(f"Order placed: {action} {quantity} {symbol} at ~${current_price:.2f}")
             self.notifier.send_notification(
                 f"Trade Executed: {action}",
-                f"{action} {quantity} share of {self.symbol} at ~${current_price:.2f}\nOrder ID: {order.id}"
+                f"{action} {quantity} share of {symbol} at ~${current_price:.2f}\nOrder ID: {order.id}"
             )
             
             # Track trade
             self.today_trades.append({
                 'time': datetime.now(self.pdt),
                 'action': action,
+                'symbol': symbol,
                 'quantity': quantity,
                 'price': current_price,
                 'order_id': order.id
@@ -196,12 +199,15 @@ class TQQQTradingBot:
             self.notifier.send_notification("Order Failed", f"Failed to place {side} order: {str(e)}")
             return None
     
-    def get_position(self):
-        """Get current position for TQQQ"""
+    def get_position(self, symbol=None):
+        """Get current position for a symbol"""
+        if symbol is None:
+            symbol = self.symbol
+        
         try:
             positions = self.trading_client.get_all_positions()
             for position in positions:
-                if position.symbol == self.symbol:
+                if position.symbol == symbol:
                     return position
             return None
         except Exception as e:
@@ -225,7 +231,7 @@ class TQQQTradingBot:
         price_change = self.seven_am_price - self.market_open_price
         price_change_pct = (price_change / self.market_open_price) * 100
         
-        logger.info(f"Market Open Price (6:30 AM): ${self.market_open_price:.2f}")
+        logger.info(f"Market Open Price (6:31 AM): ${self.market_open_price:.2f}")
         logger.info(f"Current Price (7:00 AM): ${self.seven_am_price:.2f}")
         logger.info(f"Price Change: ${price_change:.2f} ({price_change_pct:.2f}%)")
         
@@ -241,58 +247,72 @@ class TQQQTradingBot:
                     f"Price increased {price_change_pct:.2f}% since open"
                 )
         else:
-            # Price went down or stayed same - SELL signal
-            logger.info("SIGNAL: SELL - Price decreased or unchanged since market open")
+            # Price went down or stayed same - Buy SQQQ (inverse ETF)
+            logger.info("SIGNAL: SELL/SHORT - Price decreased or unchanged since market open")
+            logger.info("Buying SQQQ (inverse ETF) instead of selling")
             
-            # Check if we have a position to sell
-            position = self.get_position()
-            if position and float(position.qty) > 0:
-                order = self.place_order(OrderSide.SELL)
+            # Buy 1 share of SQQQ
+            sqqq_price = self.get_current_price("SQQQ")
+            if sqqq_price:
+                order = self.place_order(OrderSide.BUY, quantity=1, symbol="SQQQ")
                 if order:
                     self.notifier.send_notification(
-                        "SELL Signal Executed",
-                        f"Sold TQQQ at ${self.seven_am_price:.2f}\n"
-                        f"Price decreased {abs(price_change_pct):.2f}% since open"
+                        "SQQQ Buy Signal Executed",
+                        f"Bought 1 share of SQQQ at ${sqqq_price:.2f}\n"
+                        f"TQQQ price decreased {abs(price_change_pct):.2f}% since open"
                     )
             else:
-                logger.info("No position to sell - skipping SELL signal")
+                logger.error("Could not get SQQQ price")
                 self.notifier.send_notification(
-                    "SELL Signal Skipped",
-                    "No TQQQ position to sell"
+                    "SQQQ Buy Failed",
+                    "Could not get SQQQ price"
                 )
     
     def close_position(self):
-        """Close any open position at 12:59 PM"""
+        """Close any open positions (TQQQ and SQQQ) at 12:59 PM"""
         logger.info("=" * 50)
         logger.info("Executing end-of-day position close...")
         
-        position = self.get_position()
-        if position and float(position.qty) > 0:
-            current_price = self.get_current_price()
-            qty = float(position.qty)
+        positions_closed = []
+        
+        # Check and close TQQQ position
+        tqqq_position = self.get_position("TQQQ")
+        if tqqq_position and float(tqqq_position.qty) > 0:
+            current_price = self.get_current_price("TQQQ")
+            qty = float(tqqq_position.qty)
             
-            logger.info(f"Closing position: {qty} shares of {self.symbol}")
-            order = self.place_order(OrderSide.SELL, quantity=qty)
+            logger.info(f"Closing TQQQ position: {qty} shares")
+            order = self.place_order(OrderSide.SELL, quantity=qty, symbol="TQQQ")
             
             if order:
+                positions_closed.append(f"TQQQ: {qty} shares at ${current_price:.2f}")
                 # Calculate P&L if we opened position today
                 if self.position_opened and self.seven_am_price:
                     pnl = (current_price - self.seven_am_price) * qty
                     pnl_pct = ((current_price - self.seven_am_price) / self.seven_am_price) * 100
-                    
-                    self.notifier.send_notification(
-                        "Position Closed",
-                        f"Sold {qty} shares at ${current_price:.2f}\n"
-                        f"Day P&L: ${pnl:.2f} ({pnl_pct:.2f}%)"
-                    )
-                else:
-                    self.notifier.send_notification(
-                        "Position Closed",
-                        f"Sold {qty} shares at ${current_price:.2f}"
-                    )
+                    positions_closed.append(f"TQQQ P&L: ${pnl:.2f} ({pnl_pct:.2f}%)")
+        
+        # Check and close SQQQ position
+        sqqq_position = self.get_position("SQQQ")
+        if sqqq_position and float(sqqq_position.qty) > 0:
+            current_price = self.get_current_price("SQQQ")
+            qty = float(sqqq_position.qty)
+            
+            logger.info(f"Closing SQQQ position: {qty} shares")
+            order = self.place_order(OrderSide.SELL, quantity=qty, symbol="SQQQ")
+            
+            if order:
+                positions_closed.append(f"SQQQ: {qty} shares at ${current_price:.2f}")
+        
+        # Send notification
+        if positions_closed:
+            self.notifier.send_notification(
+                "Positions Closed",
+                "\n".join(positions_closed)
+            )
         else:
-            logger.info("No position to close")
-            self.notifier.send_notification("No Position", "No position to close at market close")
+            logger.info("No positions to close")
+            self.notifier.send_notification("No Positions", "No positions to close at market close")
     
     def generate_daily_summary(self):
         """Generate and send daily trading summary"""
@@ -315,6 +335,7 @@ class TQQQTradingBot:
             summary += f"\nTrade {i}:\n"
             summary += f"  Time: {trade['time'].strftime('%H:%M:%S PDT')}\n"
             summary += f"  Action: {trade['action']}\n"
+            summary += f"  Symbol: {trade['symbol']}\n"
             summary += f"  Quantity: {trade['quantity']}\n"
             summary += f"  Price: ${trade['price']:.2f}\n"
         
@@ -346,9 +367,9 @@ class TQQQTradingBot:
                 # You might want to wait until market opens or exit
                 # For now, we'll proceed assuming market will open
             
-            # Get market open price at 6:30 AM PDT
-            logger.info("Waiting for market open (6:30 AM PDT)...")
-            if self.wait_until_time(6, 30):
+            # Get market open price at 6:31 AM PDT
+            logger.info("Waiting for market open (6:31 AM PDT)...")
+            if self.wait_until_time(6, 31):
                 time.sleep(5)  # Small delay to ensure market is fully open
                 self.market_open_price = self.get_current_price()
                 if self.market_open_price:
