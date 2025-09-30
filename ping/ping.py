@@ -11,9 +11,14 @@ from urllib3.util.retry import Retry
 # Optional: prefer IPv4 to avoid IPv6 blackholes
 # System-wide way is /etc/gai.conf, but this is a simple process-level nudge:
 requests.packages.urllib3.util.connection.HAS_IPV6 = False  # type: ignore[attr-defined]
-
+LOG_FILE = "ping.log"
 log = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+def setup_logger() -> None:
+    logging.basicConfig(
+        filename=LOG_FILE,
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        force=True)
 
 PING_URL = os.getenv("PING_URL", "https://aisenseapi.com/services/v1/ping")
 DEFAULT_TIMEOUT = (5, 10)  # (connect_timeout, read_timeout) seconds
@@ -74,4 +79,5 @@ def main():
     log.info("Ping payload: %r", payload)
 
 if __name__ == "__main__":
+    setup_logger()
     main()
