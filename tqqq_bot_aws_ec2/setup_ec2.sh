@@ -45,10 +45,27 @@ if [ -f /etc/os-release ]; then
     fi
 fi
 
+# Update system
+print_status "Updating system packages..."
+sudo dnf update -y
+sudo dnf upgrade -y
 
+# Install Python 3.9+ if not present
+print_status "Installing Python and development tools..."
+sudo dnf install -y python3 python3-pip python3-devel
 
-
-
+# Install system dependencies
+print_status "Installing system dependencies..."
+sudo dnf install -y \
+    git \
+    curl \
+    wget \
+    gcc \
+    gcc-c++ \
+    make \
+    openssl-devel \
+    libffi-devel \
+    chrony  # For time synchronization
 
 # Configure timezone to PDT/PST
 print_status "Setting timezone to America/Los_Angeles (PDT/PST)..."
@@ -62,7 +79,7 @@ sudo systemctl start chronyd
 sudo chronyc sources
 
 # Create bot directory if it doesn't exist
-BOT_DIR="/home/ec2-user/workspace/algo-trading/tqqq_bot_aws_ec2"
+BOT_DIR="/home/ec2-user/tqqq_bot_aws_ec2"
 if [ ! -d "$BOT_DIR" ]; then
     print_status "Creating bot directory..."
     mkdir -p "$BOT_DIR"
@@ -71,30 +88,58 @@ fi
 # Navigate to bot directory
 cd "$BOT_DIR"
 
-
+# Create Python virtual environment
+print_status "Creating Python virtual environment..."
+python3 -m venv venv
 
 # Activate virtual environment
-source /home/ec2-user/workspace/pyenv/.myvenv/bin/activate
+source venv/bin/activate
 
+# Upgrade pip
+print_status "Upgrading pip..."
+pip install --upgrade pip
 
+# Install Python requirements
+if [ -f "requirements.txt" ]; then
+    print_status "Installing Python requirements..."
+    pip install -r requirements.txt
+else
+    print_warning "requirements.txt not found. Installing basic packages..."
+    pip install \
+        alpaca-py \
+        pandas \
+        numpy \
+        pytz \
+        python-dotenv \
+        colorlog \
+        boto3 \
+        schedule \
+        psutil
+fi
 
+# Create .env file if it doesn't exist
+if [ ! -f ".env" ]; then
+    print_status "Creating .env file template..."
+    cat > .env << 'EOL'
 # Alpaca API Credentials
-ALPACA_API_KEY=PKJCOVJ8NBAT2HVHKCSC
-ALPACA_API_SECRET=dm3BAs0Xh0qdctMB6BPMZyqHPIphB7gdVUoUqNyN
+ALPACA_API_KEY=your_api_key_here
+ALPACA_API_SECRET=your_api_secret_here
 
-
+# AWS Configuration (optional)
+AWS_REGION=us-west-2
+SNS_TOPIC_ARN=
 
 # Email Configuration (optional)
-EMAIL_SENDER=chongbei105@gmail.com
-EMAIL_PASSWORD=Wchb2015!
-EMAIL_RECIPIENT=wchb20155@gmail.com
-EOF
+EMAIL_SENDER=
+EMAIL_PASSWORD=
+EMAIL_RECIPIENT=
+EOL
     print_warning "Please edit .env file with your Alpaca API credentials"
 fi
 
 # Create systemd service file
 print_status "Creating systemd service..."
-sudo tee /etc/systemd/system/tqqq-bot.service > /dev/null << EOF
+sudo tee /etc/systemd/system/tqqq-bot.service > /dev/null << 'EOL'
 [Unit]
 Description=TQQQ/SQQQ Trading Bot
 After=network.target
@@ -102,9 +147,9 @@ After=network.target
 [Service]
 Type=simple
 User=ec2-user
-WorkingDirectory=$BOT_DIR
-Environment="PATH=$BOT_DIR/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=$BOT_DIR/venv/bin/python $BOT_DIR/run_bot.py
+WorkingDirectory=/home/ec2-user/tqqq_bot_aws_ec2
+Environment="PATH=/home/ec2-user/tqqq_bot_aws_ec2/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/ec2-user/tqqq_bot_aws_ec2/venv/bin/python /home/ec2-user/tqqq_bot_aws_ec2/run_bot.py
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
@@ -119,11 +164,11 @@ PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOL
 
 # Create systemd timer for daily execution (optional)
 print_status "Creating systemd timer for daily execution..."
-sudo tee /etc/systemd/system/tqqq-bot.timer > /dev/null << 'EOF'
+sudo tee /etc/systemd/system/tqqq-bot.timer > /dev/null << 'EOL'
 [Unit]
 Description=Run TQQQ/SQQQ Trading Bot daily at 6:25 AM PDT
 Requires=tqqq-bot.service
@@ -135,7 +180,7 @@ Persistent=true
 
 [Install]
 WantedBy=timers.target
-EOF
+EOL
 
 # Reload systemd
 print_status "Reloading systemd..."
@@ -143,7 +188,7 @@ sudo systemctl daemon-reload
 
 # Create log rotation configuration
 print_status "Setting up log rotation..."
-sudo tee /etc/logrotate.d/tqqq-bot > /dev/null << EOF
+sudo tee /etc/logrotate.d/tqqq-bot > /dev/null << EOL
 $BOT_DIR/logs/*.log {
     daily
     rotate 30
@@ -153,7 +198,7 @@ $BOT_DIR/logs/*.log {
     notifempty
     create 0644 ec2-user ec2-user
 }
-EOF
+EOL
 
 # Create cron job for market days only (alternative to systemd timer)
 print_status "Creating cron job (alternative to systemd timer)..."
@@ -172,16 +217,16 @@ fi
 print_status "Creating helper scripts..."
 
 # Start script
-cat > start_bot.sh << 'EOF'
+cat > start_bot.sh << 'EOL'
 #!/bin/bash
 cd /home/ec2-user/tqqq_bot_aws_ec2
 source venv/bin/activate
 python run_bot.py
-EOF
+EOL
 chmod +x start_bot.sh
 
 # Status script
-cat > check_status.sh << 'EOF'
+cat > check_status.sh << 'EOL'
 #!/bin/bash
 echo "Bot Service Status:"
 sudo systemctl status tqqq-bot.service --no-pager
@@ -191,16 +236,16 @@ sudo journalctl -u tqqq-bot.service -n 20 --no-pager
 echo ""
 echo "Timer Status:"
 sudo systemctl status tqqq-bot.timer --no-pager
-EOF
+EOL
 chmod +x check_status.sh
 
 # Test script
-cat > test_bot.sh << 'EOF'
+cat > test_bot.sh << 'EOL'
 #!/bin/bash
 cd /home/ec2-user/tqqq_bot_aws_ec2
 source venv/bin/activate
 python run_bot.py --validate-only
-EOF
+EOL
 chmod +x test_bot.sh
 
 # Make run_bot.py executable
