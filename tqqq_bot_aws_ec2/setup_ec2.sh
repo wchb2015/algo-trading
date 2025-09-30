@@ -45,27 +45,10 @@ if [ -f /etc/os-release ]; then
     fi
 fi
 
-# Update system
-print_status "Updating system packages..."
-sudo dnf update -y
-sudo dnf upgrade -y
 
-# Install Python 3.9+ if not present
-print_status "Installing Python and development tools..."
-sudo dnf install -y python3 python3-pip python3-devel
 
-# Install system dependencies
-print_status "Installing system dependencies..."
-sudo dnf install -y \
-    git \
-    curl \
-    wget \
-    gcc \
-    gcc-c++ \
-    make \
-    openssl-devel \
-    libffi-devel \
-    chrony  # For time synchronization
+
+
 
 # Configure timezone to PDT/PST
 print_status "Setting timezone to America/Los_Angeles (PDT/PST)..."
@@ -79,7 +62,7 @@ sudo systemctl start chronyd
 sudo chronyc sources
 
 # Create bot directory if it doesn't exist
-BOT_DIR="/home/ec2-user/tqqq_bot_aws_ec2"
+BOT_DIR="/home/ec2-user/workspace/algo-trading/tqqq_bot_aws_ec2"
 if [ ! -d "$BOT_DIR" ]; then
     print_status "Creating bot directory..."
     mkdir -p "$BOT_DIR"
@@ -88,51 +71,23 @@ fi
 # Navigate to bot directory
 cd "$BOT_DIR"
 
-# Create Python virtual environment
-print_status "Creating Python virtual environment..."
-python3 -m venv venv
+
 
 # Activate virtual environment
-source venv/bin/activate
+source /home/ec2-user/workspace/pyenv/.myvenv/bin/activate
 
-# Upgrade pip
-print_status "Upgrading pip..."
-pip install --upgrade pip
 
-# Install Python requirements
-if [ -f "requirements.txt" ]; then
-    print_status "Installing Python requirements..."
-    pip install -r requirements.txt
-else
-    print_warning "requirements.txt not found. Installing basic packages..."
-    pip install \
-        alpaca-py \
-        pandas \
-        numpy \
-        pytz \
-        python-dotenv \
-        colorlog \
-        boto3 \
-        schedule \
-        psutil
-fi
 
-# Create .env file if it doesn't exist
-if [ ! -f ".env" ]; then
-    print_status "Creating .env file template..."
-    cat > .env << 'EOF'
 # Alpaca API Credentials
-ALPACA_API_KEY=your_api_key_here
-ALPACA_API_SECRET=your_api_secret_here
+ALPACA_API_KEY=PKJCOVJ8NBAT2HVHKCSC
+ALPACA_API_SECRET=dm3BAs0Xh0qdctMB6BPMZyqHPIphB7gdVUoUqNyN
 
-# AWS Configuration (optional)
-AWS_REGION=us-west-2
-SNS_TOPIC_ARN=
+
 
 # Email Configuration (optional)
-EMAIL_SENDER=
-EMAIL_PASSWORD=
-EMAIL_RECIPIENT=
+EMAIL_SENDER=chongbei105@gmail.com
+EMAIL_PASSWORD=Wchb2015!
+EMAIL_RECIPIENT=wchb20155@gmail.com
 EOF
     print_warning "Please edit .env file with your Alpaca API credentials"
 fi
