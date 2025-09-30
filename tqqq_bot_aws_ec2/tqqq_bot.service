@@ -1,0 +1,49 @@
+[Unit]
+Description=TQQQ/SQQQ Trading Bot Service
+Documentation=https://github.com/yourusername/tqqq_bot_aws_ec2
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+
+# Working directory
+WorkingDirectory=/home/ubuntu/tqqq_bot_aws_ec2
+
+# Environment variables
+Environment="PATH=/home/ubuntu/tqqq_bot_aws_ec2/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Command to execute
+ExecStart=/home/ubuntu/tqqq_bot_aws_ec2/venv/bin/python /home/ubuntu/tqqq_bot_aws_ec2/run_bot.py
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tqqq-bot
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/tqqq_bot_aws_ec2/logs
+
+# Resource limits
+LimitNOFILE=1024
+LimitNPROC=512
+
+# Timeout settings
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
