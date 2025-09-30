@@ -69,6 +69,7 @@ def call_ping_api() -> Dict[str, Any]:
         raise
 
 def main():
+    log.info("Ping start.")
     payload = call_ping_api()
     log.info("Ping payload: %r", payload)
 
