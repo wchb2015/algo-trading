@@ -15,7 +15,7 @@ requests.packages.urllib3.util.connection.HAS_IPV6 = False  # type: ignore[attr-
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-PING_URL = os.getenv("PING_URL", "https://your.api.endpoint/ping")
+PING_URL = os.getenv("PING_URL", "https://aisenseapi.com/services/v1/ping")
 DEFAULT_TIMEOUT = (5, 10)  # (connect_timeout, read_timeout) seconds
 
 def _session() -> requests.Session:
