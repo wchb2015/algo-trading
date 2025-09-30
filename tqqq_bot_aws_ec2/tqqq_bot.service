@@ -6,18 +6,18 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=ubuntu
-Group=ubuntu
+User=ec2-user
+Group=ec2-user
 
 # Working directory
-WorkingDirectory=/home/ubuntu/tqqq_bot_aws_ec2
+WorkingDirectory=/home/ec2-user/tqqq_bot_aws_ec2
 
 # Environment variables
-Environment="PATH=/home/ubuntu/tqqq_bot_aws_ec2/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PATH=/home/ec2-user/tqqq_bot_aws_ec2/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="PYTHONUNBUFFERED=1"
 
 # Command to execute
-ExecStart=/home/ubuntu/tqqq_bot_aws_ec2/venv/bin/python /home/ubuntu/tqqq_bot_aws_ec2/run_bot.py
+ExecStart=/home/ec2-user/tqqq_bot_aws_ec2/venv/bin/python /home/ec2-user/tqqq_bot_aws_ec2/run_bot.py
 
 # Restart policy
 Restart=on-failure
@@ -35,7 +35,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/ubuntu/tqqq_bot_aws_ec2/logs
+ReadWritePaths=/home/ec2-user/tqqq_bot_aws_ec2/logs
 
 # Resource limits
 LimitNOFILE=1024

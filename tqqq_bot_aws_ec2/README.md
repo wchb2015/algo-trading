@@ -19,7 +19,7 @@ The bot implements a straightforward intraday momentum strategy with strict time
 
 ### Prerequisites
 
-- AWS EC2 instance (Ubuntu 20.04 or 22.04 recommended)
+- AWS EC2 instance (Amazon Linux 2023 or Ubuntu 20.04/22.04)
 - Python 3.8 or higher
 - Alpaca Trading Account ([Get free paper trading account](https://alpaca.markets/))
 - Stable internet connection
@@ -61,7 +61,7 @@ python run_bot.py
 
 ### Step 1: Launch EC2 Instance
 
-1. Launch an Ubuntu 20.04/22.04 EC2 instance
+1. Launch an Amazon Linux 2023 EC2 instance (or Ubuntu 20.04/22.04)
 2. Instance type: t3.micro is sufficient
 3. Security group: Allow SSH (port 22) from your IP
 4. Storage: 8-10 GB is sufficient
@@ -70,12 +70,20 @@ python run_bot.py
 
 1. **SSH into your instance:**
 ```bash
+# For Amazon Linux 2023:
+ssh -i your-key.pem ec2-user@your-ec2-ip
+
+# For Ubuntu:
 ssh -i your-key.pem ubuntu@your-ec2-ip
 ```
 
 2. **Upload the bot files:**
 ```bash
 # From your local machine
+# For Amazon Linux 2023:
+scp -i your-key.pem -r tqqq_bot_aws_ec2/ ec2-user@your-ec2-ip:~/
+
+# For Ubuntu:
 scp -i your-key.pem -r tqqq_bot_aws_ec2/ ubuntu@your-ec2-ip:~/
 ```
 
@@ -137,7 +145,7 @@ tqqq_bot_aws_ec2/
 ├── config.py             # Configuration settings
 ├── run_bot.py            # Launcher with validation
 ├── requirements.txt      # Python dependencies
-├── setup_ec2.sh          # EC2 setup script
+├── setup_ec2.sh          # EC2 setup script (Amazon Linux 2023 & Ubuntu)
 ├── tqqq_bot.service      # Systemd service file
 ├── .env.example          # Environment variables template
 ├── README.md             # This file
@@ -250,6 +258,11 @@ sudo systemctl list-timers --all | grep tqqq
 
 ### Manual Run
 ```bash
+# For Amazon Linux 2023:
+cd /home/ec2-user/tqqq_bot_aws_ec2
+./start_bot.sh
+
+# For Ubuntu:
 cd /home/ubuntu/tqqq_bot_aws_ec2
 ./start_bot.sh
 ```
@@ -350,7 +363,8 @@ find logs/ -name "*.log" -mtime +30 -delete
 
 ---
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Last Updated**: September 2025  
 **License**: MIT  
-**Strategy**: TQQQ/SQQQ Momentum Trading
+**Strategy**: TQQQ/SQQQ Momentum Trading  
+**Supported OS**: Amazon Linux 2023, Ubuntu 20.04/22.04

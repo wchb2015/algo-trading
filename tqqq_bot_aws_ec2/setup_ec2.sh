@@ -1,12 +1,13 @@
 #!/bin/bash
 
 # TQQQ/SQQQ Trading Bot - AWS EC2 Setup Script
-# This script sets up the trading bot on an Ubuntu EC2 instance
+# This script sets up the trading bot on an Amazon Linux 2023 EC2 instance
 
 set -e  # Exit on error
 
 echo "============================================"
 echo "TQQQ/SQQQ Trading Bot - EC2 Setup"
+echo "For Amazon Linux 2023"
 echo "============================================"
 
 # Colors for output
@@ -34,25 +35,36 @@ if [[ $EUID -eq 0 ]]; then
    exit 1
 fi
 
+# Detect Amazon Linux version
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ "$NAME" == "Amazon Linux" ]]; then
+        print_status "Detected Amazon Linux $VERSION"
+    else
+        print_warning "This script is optimized for Amazon Linux. Detected: $NAME $VERSION"
+    fi
+fi
+
 # Update system
 print_status "Updating system packages..."
-sudo apt-get update -y
-sudo apt-get upgrade -y
+sudo dnf update -y
+sudo dnf upgrade -y
 
 # Install Python 3.9+ if not present
-print_status "Installing Python..."
-sudo apt-get install -y python3 python3-pip python3-venv
+print_status "Installing Python and development tools..."
+sudo dnf install -y python3 python3-pip python3-devel
 
 # Install system dependencies
 print_status "Installing system dependencies..."
-sudo apt-get install -y \
+sudo dnf install -y \
     git \
     curl \
     wget \
-    build-essential \
-    python3-dev \
-    libssl-dev \
-    libffi-dev \
+    gcc \
+    gcc-c++ \
+    make \
+    openssl-devel \
+    libffi-devel \
     chrony  # For time synchronization
 
 # Configure timezone to PDT/PST
@@ -62,12 +74,12 @@ echo "Current time: $(date)"
 
 # Ensure time synchronization
 print_status "Configuring time synchronization..."
-sudo systemctl enable chrony
-sudo systemctl start chrony
+sudo systemctl enable chronyd
+sudo systemctl start chronyd
 sudo chronyc sources
 
 # Create bot directory if it doesn't exist
-BOT_DIR="/home/ubuntu/tqqq_bot_aws_ec2"
+BOT_DIR="/home/ec2-user/tqqq_bot_aws_ec2"
 if [ ! -d "$BOT_DIR" ]; then
     print_status "Creating bot directory..."
     mkdir -p "$BOT_DIR"
@@ -134,7 +146,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=ubuntu
+User=ec2-user
 WorkingDirectory=$BOT_DIR
 Environment="PATH=$BOT_DIR/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ExecStart=$BOT_DIR/venv/bin/python $BOT_DIR/run_bot.py
@@ -184,7 +196,7 @@ $BOT_DIR/logs/*.log {
     delaycompress
     missingok
     notifempty
-    create 0644 ubuntu ubuntu
+    create 0644 ec2-user ec2-user
 }
 EOF
 
@@ -207,7 +219,7 @@ print_status "Creating helper scripts..."
 # Start script
 cat > start_bot.sh << 'EOF'
 #!/bin/bash
-cd /home/ubuntu/tqqq_bot_aws_ec2
+cd /home/ec2-user/tqqq_bot_aws_ec2
 source venv/bin/activate
 python run_bot.py
 EOF
@@ -230,7 +242,7 @@ chmod +x check_status.sh
 # Test script
 cat > test_bot.sh << 'EOF'
 #!/bin/bash
-cd /home/ubuntu/tqqq_bot_aws_ec2
+cd /home/ec2-user/tqqq_bot_aws_ec2
 source venv/bin/activate
 python run_bot.py --validate-only
 EOF
@@ -275,4 +287,5 @@ echo "- The bot runs in PAPER TRADING mode by default"
 echo "- Trading times are in PDT (6:30 AM, 7:00 AM, 12:59 PM)"
 echo "- Logs are stored in: $BOT_DIR/logs/"
 echo "- Service name: tqqq-bot"
+echo "- Running on: Amazon Linux 2023"
 echo "============================================"
