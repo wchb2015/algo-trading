@@ -1,0 +1,7 @@
+# Required packages for TSLA Real-time Price Tracker
+alpaca-py>=0.13.0
+python-dotenv>=1.0.0
+pandas>=2.0.0
+pytz>=2023.3
+colorama>=0.4.6
+asyncio-mqtt>=0.16.1  # For async operations in streaming mode
