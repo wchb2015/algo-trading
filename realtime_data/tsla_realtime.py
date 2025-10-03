@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.live import StockDataStream
 from alpaca.data.requests import StockLatestQuoteRequest, StockLatestTradeRequest
+from alpaca.data.enums import DataFeed
 from alpaca.trading.client import TradingClient
 from colorama import init, Fore, Style
 import pandas as pd
@@ -94,8 +95,8 @@ class TSLARealtimeTracker:
         
         # Streaming client for real-time data
         if self.mode == 'streaming':
-            # Use 'iex' feed for free tier, 'sip' for premium
-            self.stream_client = StockDataStream(api_key, api_secret, feed='iex')
+            # Use IEX feed for free tier, SIP for premium
+            self.stream_client = StockDataStream(api_key, api_secret, feed=DataFeed.IEX)
         
         # Verify connection
         account = self.trading_client.get_account()
@@ -303,7 +304,7 @@ class TSLARealtimeTracker:
                         # Create a new stream client for retry
                         api_key = os.getenv('ALPACA_API_KEY')
                         api_secret = os.getenv('ALPACA_API_SECRET')
-                        self.stream_client = StockDataStream(api_key, api_secret, feed='iex')
+                        self.stream_client = StockDataStream(api_key, api_secret, feed=DataFeed.IEX)
                     else:
                         print(f"\n{Fore.RED}Failed to connect after {max_retries} attempts. Connection limit exceeded.")
                         print(f"{Fore.YELLOW}Please wait a few minutes and try again, or close other streaming connections.")
