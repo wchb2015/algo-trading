@@ -50,7 +50,7 @@ def get_tsla_price():
             spread = ask_price - bid_price if (ask_price and bid_price) else 0
             
             return {
-                'timestamp': datetime.now(pytz.timezone('America/New_York')),
+                'timestamp': datetime.now(pytz.timezone('America/Los_Angeles')),
                 'last_price': last_price,
                 'bid': bid_price,
                 'ask': ask_price,
