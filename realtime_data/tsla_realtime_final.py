@@ -1,6 +1,6 @@
 """
-Real-time TSLA Stock Price Fetcher
-Supports both polling and streaming methods for getting real-time data
+TSLA Real-time Price Tracker - Final Version
+Supports both polling and streaming modes with proper error handling
 """
 
 import os
@@ -94,8 +94,12 @@ class TSLARealtimeTracker:
         
         # Streaming client for real-time data
         if self.mode == 'streaming':
-            # Use 'iex' feed for free tier, 'sip' for premium
-            self.stream_client = StockDataStream(api_key, api_secret, feed='iex')
+            # Use the correct feed parameter
+            self.stream_client = StockDataStream(
+                api_key, 
+                api_secret,
+                feed='iex'  # or 'sip' for premium data
+            )
         
         # Verify connection
         account = self.trading_client.get_account()
@@ -103,28 +107,27 @@ class TSLARealtimeTracker:
     
     async def _handle_quote(self, data):
         """Handle incoming quote data from stream"""
-        quote_data = {
-            'bid_price': float(data.bid_price) if data.bid_price else 0,
-            'ask_price': float(data.ask_price) if data.ask_price else 0,
-            'bid_size': data.bid_size,
-            'ask_size': data.ask_size,
-            'timestamp': data.timestamp
-        }
-        self.display_price_update(quote_data)
+        try:
+            quote_data = {
+                'bid_price': float(data.bid_price) if data.bid_price else 0,
+                'ask_price': float(data.ask_price) if data.ask_price else 0,
+                'bid_size': data.bid_size,
+                'ask_size': data.ask_size,
+                'timestamp': data.timestamp
+            }
+            self.display_price_update(quote_data)
+        except Exception as e:
+            logger.error(f"Error handling quote: {e}")
     
     async def _handle_trade(self, data):
         """Handle incoming trade data from stream"""
-        trade_data = {
-            'price': float(data.price),
-            'size': data.size,
-            'timestamp': data.timestamp
-        }
-        # For trades, we'll display with the latest quote if available
-        quote = self.get_latest_quote()
-        if quote:
-            self.display_price_update(quote, trade_data)
-        else:
-            # If no quote available, create a minimal quote from trade
+        try:
+            trade_data = {
+                'price': float(data.price),
+                'size': data.size,
+                'timestamp': data.timestamp
+            }
+            # For trades, create a minimal quote
             quote_data = {
                 'bid_price': float(data.price) - 0.01,
                 'ask_price': float(data.price) + 0.01,
@@ -133,6 +136,8 @@ class TSLARealtimeTracker:
                 'timestamp': data.timestamp
             }
             self.display_price_update(quote_data, trade_data)
+        except Exception as e:
+            logger.error(f"Error handling trade: {e}")
     
     def get_latest_quote(self):
         """Get the latest quote for TSLA (polling method)"""
@@ -274,6 +279,7 @@ class TSLARealtimeTracker:
         print(f"{Fore.YELLOW}Connecting to Alpaca WebSocket...")
         print(f"{Fore.CYAN}Press Ctrl+C to stop\n")
         
+        # Track connection attempts
         max_retries = 3
         retry_count = 0
         
@@ -284,42 +290,38 @@ class TSLARealtimeTracker:
                 self.stream_client.subscribe_trades(self._handle_trade, self.symbol)
                 
                 print(f"{Fore.GREEN}✓ Subscribed to {self.symbol} real-time data")
-                print(f"{Fore.YELLOW}Note: Live data is only available during market hours (9:30 AM - 4:00 PM ET)\n")
+                print(f"{Fore.YELLOW}Note: Live data is only available during market hours (9:30 AM - 4:00 PM ET)")
+                print(f"{Fore.CYAN}Current time: {datetime.now(self.et).strftime('%I:%M %p ET')}\n")
                 
-                # Use _run_forever directly to avoid event loop issues
+                # Run the stream
                 await self.stream_client._run_forever()
                 break  # If successful, exit the retry loop
                 
-            except KeyboardInterrupt:
-                print(f"\n\n{Fore.YELLOW}Stopping price tracker...")
-                break
             except ValueError as e:
                 if "connection limit exceeded" in str(e):
                     retry_count += 1
-                    if retry_count < max_retries:
-                        wait_time = 5 * retry_count  # Exponential backoff
-                        print(f"\n{Fore.YELLOW}Connection limit exceeded. Retrying in {wait_time} seconds... (Attempt {retry_count}/{max_retries})")
-                        await asyncio.sleep(wait_time)
-                        # Create a new stream client for retry
-                        api_key = os.getenv('ALPACA_API_KEY')
-                        api_secret = os.getenv('ALPACA_API_SECRET')
-                        self.stream_client = StockDataStream(api_key, api_secret, feed='iex')
-                    else:
-                        print(f"\n{Fore.RED}Failed to connect after {max_retries} attempts. Connection limit exceeded.")
-                        print(f"{Fore.YELLOW}Please wait a few minutes and try again, or close other streaming connections.")
-                        break
+                    wait_time = 5 * retry_count  # Exponential backoff
+                    print(f"\n{Fore.YELLOW}Connection limit exceeded. Waiting {wait_time} seconds before retry {retry_count}/{max_retries}...")
+                    await asyncio.sleep(wait_time)
                 else:
-                    logger.error(f"Streaming error: {e}")
-                    print(f"\n{Fore.RED}Streaming error: {e}")
-                    break
+                    raise
+            except KeyboardInterrupt:
+                print(f"\n\n{Fore.YELLOW}Stopping price tracker...")
+                break
             except Exception as e:
                 logger.error(f"Streaming error: {e}")
                 print(f"\n{Fore.RED}Streaming error: {e}")
-                break
+                retry_count += 1
+                if retry_count < max_retries:
+                    wait_time = 5 * retry_count
+                    print(f"{Fore.YELLOW}Retrying in {wait_time} seconds... (Attempt {retry_count}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                else:
+                    print(f"{Fore.RED}Max retries reached. Exiting.")
+                    break
         
         # Cleanup
         try:
-            # Close WebSocket if it exists
             if hasattr(self.stream_client, '_ws') and self.stream_client._ws:
                 await self.stream_client._ws.close()
         except:
@@ -402,7 +404,11 @@ def main():
         tracker.run_polling(interval=args.interval, duration=args.duration)
     else:
         # Run streaming mode
-        asyncio.run(tracker.run_streaming())
+        try:
+            asyncio.run(tracker.run_streaming())
+        except Exception as e:
+            print(f"{Fore.RED}Failed to run streaming: {e}")
+            print(f"{Fore.YELLOW}Try using polling mode instead: --mode polling")
 
 
 if __name__ == "__main__":

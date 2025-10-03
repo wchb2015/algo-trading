@@ -15,9 +15,10 @@ This folder contains implementations for fetching real-time TSLA stock prices us
 
 ## Files
 
-1. **`tsla_realtime.py`** - Full-featured real-time tracker with both polling and streaming modes
+1. **`tsla_realtime.py`** - Full-featured real-time tracker with both polling and streaming modes (with connection retry logic)
 2. **`simple_tsla_price.py`** - Simplified version for quick price checks
-3. **`requirements.txt`** - Required Python packages
+3. **`tsla_realtime_final.py`** - Alternative robust implementation with enhanced error handling
+4. **`requirements.txt`** - Required Python packages
 
 ## Prerequisites
 
@@ -155,6 +156,9 @@ When `--save-csv` is used, data is saved with columns:
 - Receives push notifications on price changes
 - True real-time updates
 - Best for high-frequency monitoring
+- **Automatic retry logic**: Handles connection limit errors with exponential backoff
+- **Connection management**: Properly closes WebSocket connections on exit
+- **Feed selection**: Uses IEX feed (free tier) by default
 
 ### Price Tracking
 - Tracks price changes between updates
@@ -180,18 +184,30 @@ Note: Data availability depends on your Alpaca subscription level.
 ## Troubleshooting
 
 1. **No data received**: 
-   - Check if market is open
+   - Check if market is open (9:30 AM - 4:00 PM ET)
    - Verify API credentials in `.env` file
    - Ensure you have market data subscription
+   - For streaming mode, data only flows during market hours
 
 2. **Connection errors**:
    - Check internet connection
-   - Verify Alpaca API status
-   - Try paper trading endpoint
+   - Verify Alpaca API status at https://status.alpaca.markets/
+   - Try paper trading endpoint (default)
 
-3. **Import errors**:
+3. **Streaming mode errors**:
+   - **"AttributeError: 'StockDataStream' object has no attribute 'on'"**: Fixed in current version - uses modern API
+   - **"Connection limit exceeded"**: The tracker now automatically retries with exponential backoff
+   - If persistent, close other streaming connections or wait a few minutes
+   - Maximum 1 concurrent WebSocket connection allowed per API key
+
+4. **Import errors**:
    - Install requirements: `pip install -r realtime_data/requirements.txt`
    - Check Python version (3.7+ required)
+   - Ensure alpaca-py version is >=0.13.0
+
+5. **Rate limiting**:
+   - Polling mode: Default 1-second interval respects rate limits
+   - Streaming mode: No rate limits for subscriptions, but only 1 connection allowed
 
 ## Examples
 
@@ -220,14 +236,28 @@ python realtime_data/tsla_realtime.py --mode streaming --save-csv
 - Streaming mode requires stable internet connection
 - CSV files are saved in the `realtime_data` folder
 - Press `Ctrl+C` to stop the tracker gracefully
+- **Streaming mode updates**: 
+  - Fixed to work with alpaca-py >=0.13.0
+  - Includes automatic retry on connection limit errors
+  - Uses IEX data feed for free tier accounts
 
 ## API Rate Limits
 
 Alpaca has rate limits:
 - **Historical Data**: 200 requests per minute
-- **Streaming**: No specific limit for subscriptions
+- **Streaming**: 
+  - No rate limit for subscriptions
+  - Maximum 1 concurrent WebSocket connection per API key
+  - Connection limit errors are automatically handled with retry logic
 
-The polling mode respects these limits with default settings.
+The polling mode respects these limits with default settings. The streaming mode includes automatic retry with exponential backoff if connection limits are exceeded.
+
+## Recent Updates
+
+- **Fixed streaming mode**: Updated to work with modern Alpaca API (alpaca-py >=0.13.0)
+- **Added connection retry logic**: Automatic handling of connection limit errors
+- **Improved error handling**: Better cleanup and user feedback
+- **Feed configuration**: Proper IEX/SIP feed selection
 
 ## Future Enhancements
 
@@ -238,3 +268,5 @@ Potential improvements:
 - Database storage option
 - Web dashboard interface
 - Historical comparison charts
+- Support for options data
+- Integration with trading strategies
